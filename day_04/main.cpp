@@ -6,10 +6,12 @@
 using namespace std;
 
 #define DEBUG 0
+#define PART_1 false
 
 typedef struct card
 {
     uint64_t id {};
+    uint64_t count {1}; // Used in part 2
     vector<uint64_t> winnings {};
     vector<uint64_t> guesses {};
 } card_t;
@@ -88,6 +90,33 @@ uint64_t get_points(card_t &card)
     return 1 << (wins - 1);
 }
 
+uint64_t get_matching_numbers(card_t &card)
+{
+    int wins {0};
+    for (auto win : card.winnings)
+        if (std::find(card.guesses.begin(), card.guesses.end(), win) != card.guesses.end())
+            wins++;
+    
+    return wins;
+}
+
+uint64_t get_number_of_cards(vector<card_t> &cards)
+{
+    for (int i = 0; i < cards.size(); ++i)
+    {
+        uint64_t wins = get_matching_numbers(cards.at(i));
+        for (int j = i + 1; j <= i + wins; ++j)
+            cards.at(j).count += cards.at(i).count;
+    }
+    
+    uint64_t sum {};
+    
+    for (auto card : cards)
+        sum += card.count;
+    
+    return sum;
+}
+
 int main()
 {
     auto start_time = chrono::high_resolution_clock::now();
@@ -103,18 +132,25 @@ int main()
     
     string temp {};
     uint64_t sum {};
+    vector<card_t> cards {};
     while (!file.eof())
     {
         getline(file, temp);
         card_t card = parse_line(temp);
-        sum += get_points(card);
+        if (PART_1)
+            sum += get_points(card);
+        else
+            cards.emplace_back(card);
     }
     
     file.close();
     
     // Part 1
-    cout << "The sum of points is: " << sum << endl;
+    if (PART_1)
+        cout << "The sum of points is: " << sum << endl;
     // Part 2
+    else
+        cout << "The number of cards is: " << get_number_of_cards(cards) << endl;
     
     auto end_time = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end_time - start_time);
