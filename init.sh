@@ -9,11 +9,14 @@ fi
 # Assign parameters to variables
 destination_directory="$1"
 
-# Check if destination directory exists, create it if not
-if [ ! -d "$destination_directory" ]; then
-    echo "Destination directory '$destination_directory' not found. Creating it..."
-    mkdir -p "$destination_directory"
+# Check if destination directory exists, if so, abort
+if [ -d "$destination_directory" ]; then
+    echo "Destination directory '$destination_directory' already exists. Aborting."
+    exit 1
 fi
+
+mkdir -p "$destination_directory"
+echo "Destination directory '$destination_directory' created."
 
 # Copy files to destination
 cp ./main.cpp "$destination_directory"
