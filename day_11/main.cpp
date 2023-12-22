@@ -5,6 +5,7 @@
 using namespace std;
 
 #define DEBUG 0
+#define PART_1 false
 
 typedef struct coord
 {
@@ -24,28 +25,29 @@ uint64_t abs(coord_t coord)
     return abs(coord.row) + abs(coord.col);
 }
 
-uint64_t find_distances(vector<string> &grid)
+uint64_t find_distances(vector<string> &grid, int expantion_rate)
 {
-    // Expand the rows that are empty
-    for (auto row_itr = grid.begin(); row_itr != grid.end(); row_itr++)
+    vector<int> rows {};
+    // Find the rows that are empty
+    for (int row = 0; row < grid.size(); ++row)
     {
         bool clean_row = true;
-        for (char & col_itr : *row_itr)
+        for (int col = 0; col < grid.at(row).length(); ++col)
         {
-            if (col_itr == '#')
+            if (grid.at(row).at(col) == '#')
             {
                 clean_row = false;
                 break;
             }
         }
         if (clean_row)
-        {
-            row_itr = grid.insert(row_itr, *row_itr);
-            row_itr++;
-        }
+            rows.emplace_back(row);
     }
 
-    // Expand the columns that are empty
+
+
+    vector<int> cols {};
+    // Find the columns that are empty
     for (int col = 0; col < grid.at(0).length(); ++col)
     {
         bool clean_col = true;
@@ -58,11 +60,7 @@ uint64_t find_distances(vector<string> &grid)
             }
         }
         if (clean_col)
-        {
-            for (auto & row : grid)
-                row.insert(col, 1, '.' );
-            col++;
-        }
+            cols.emplace_back(col);
     }
 
     vector<coord_t> galaxies {};
@@ -73,6 +71,21 @@ uint64_t find_distances(vector<string> &grid)
             if (grid.at(row).at(col) == '#')
                 galaxies.emplace_back(coord_t(row, col));
 
+
+    // We now need to expand the universe
+    for (int row = 0; row < rows.size(); ++row)
+    {
+        for (auto &galaxy: galaxies)
+            if (galaxy.row > rows.at(row) + (row * (expantion_rate - 1)))
+                galaxy.row += (expantion_rate - 1);
+
+    }
+    for (int col = 0; col < cols.size(); ++col)
+    {
+        for (auto &galaxy: galaxies)
+            if (galaxy.col > cols.at(col) + (col * (expantion_rate - 1)))
+                galaxy.col += (expantion_rate - 1);
+    }
 
     // Now we need to find the distance between all pairs
     uint64_t distance {};
@@ -107,9 +120,11 @@ int main()
     file.close();
     
     // Part 1
-    cout << "The sum of distances between galaxies is: " << find_distances(grid) << endl;
-    
+    if (PART_1)
+        cout << "The sum of distances between galaxies is: " << find_distances(grid, 2) << endl;
     // Part 2
+    else
+        cout << "The sum of distances between galaxies is: " << find_distances(grid, 1000000) << endl;
     
     auto end_time = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end_time - start_time);
