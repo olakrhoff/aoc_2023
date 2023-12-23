@@ -292,6 +292,15 @@ vector<record_t> generate_permutations_for_first_spring(record_t record)
     return perms;
 }
 
+uint64_t length_needed(const vector<uint64_t> &nums)
+{
+    uint64_t sum {};
+    for (auto num : nums)
+        sum += num;
+
+    return sum + nums.size() - 1;
+}
+
 uint64_t find_combinations_recursive(record_t record, map<record_t, uint64_t> &cache)
 {
     // If we have solved the problem before we just return the cached value
@@ -314,27 +323,18 @@ uint64_t find_combinations_recursive(record_t record, map<record_t, uint64_t> &c
     }
     else if (record.contiguous_springs.empty())
     {
-        bool valid = true;
         for (auto spring : record.springs)
         {
             if (spring == '#')
             {
-                valid = false;
-                break;
+                cache.insert({record, 0});
+                return 0;
             }
         }
-        if (valid)
-        {
-            cache.insert({record, 1});
-            return 1;
-        }
-        else
-        {
-            cache.insert({record, 0});
-            return 0;
-        }
+        cache.insert({record, 1});
+        return 1;
     }
-    else if (record.springs.length() < record.contiguous_springs.at(0))
+    else if (record.springs.length() < length_needed(record.contiguous_springs))
     {
         cache.insert({record, 0});
         return 0;
@@ -356,9 +356,12 @@ uint64_t find_combinations_recursive(record_t record, map<record_t, uint64_t> &c
 uint64_t find_all_combinations_recursive(const vector<string> &records)
 {
     uint64_t combinations {};
-    map<record_t, uint64_t> cache;
+
     for (auto &record: records)
+    {
+        map<record_t, uint64_t> cache;
         combinations += find_combinations_recursive(parse_record(record), cache);
+    }
 
     return combinations;
 }
@@ -391,7 +394,9 @@ int main()
 
     // Part 1
     if (PART_1)
-        cout << "The number of combinations of springs are: " << find_all_combinations(records) << endl;
+        // This line is kept as a memory, so wonder at the improvement made in the recursive memoisation attempt
+        //cout << "The number of combinations of springs are: " << find_all_combinations(records) << endl;
+        cout << "The number of combinations of springs are: " << find_all_combinations_recursive(records) << endl;
     // Part 2
     else
         cout << "The number of combinations of the unfolded springs are: " << find_all_combinations_recursive(records) << endl;
