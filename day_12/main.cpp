@@ -2,10 +2,12 @@
 #include <fstream>
 #include <vector>
 #include <set>
+#include <map>
 
 using namespace std;
 
 #define DEBUG 0
+#define PART_1 false
 
 string trim(string line, char delimiter)
 {
@@ -72,6 +74,17 @@ typedef struct record
     bool operator>=(const record &rhs) const
     {
         return !(*this < rhs);
+    }
+
+    bool operator==(const record &rhs) const
+    {
+        return springs == rhs.springs &&
+               contiguous_springs == rhs.contiguous_springs;
+    }
+
+    bool operator!=(const record &rhs) const
+    {
+        return !(rhs == *this);
     }
 } record_t;
 
@@ -214,6 +227,142 @@ uint64_t find_all_combinations(const vector<string> &records)
     return combinations;
 }
 
+vector<string> unfold(const vector<string> &records)
+{
+    vector<string> result {};
+    for (auto record : records)
+    {
+        record_t rec = parse_record(record);
+        string temp;
+        for (int i = 0; i < 4; ++i)
+            temp += rec.springs + '?';
+        temp += rec.springs + ' ';
+
+        string nums;
+        for (auto num : rec.contiguous_springs)
+            nums += to_string(num) + ',';
+        nums = nums.substr(0, nums.length() - 1);
+        for (int i = 0; i < 4; ++i)
+            temp += nums + ',';
+        temp += nums;
+
+        result.emplace_back(temp);
+    }
+
+    return result;
+}
+
+vector<record_t> generate_permutations_for_first_spring(record_t record)
+{
+    vector<record_t> perms {};
+
+    auto length = record.contiguous_springs.at(0);
+    for (int i = 0; i < record.springs.length() - length + 1 && i <= record.springs.find('#'); ++i)
+    {
+        bool match = true;
+        for (int j = i; j < i + length; ++j)
+        {
+            if (record.springs.at(j) == '.')
+            {
+                match = false;
+                break;
+            }
+        }
+        if (!match)
+            continue;
+        if (i > 0)
+            if (record.springs.at(i - 1) == '#')
+                continue;
+        if (i + length < record.springs.length())
+            if (record.springs.at(i + length) == '#')
+                continue;
+
+        record_t new_rec;
+
+        int offset = 0;
+        if (i + length < record.springs.length())
+            offset = 1;
+        new_rec.springs = record.springs.substr(i + length + offset);
+        new_rec.contiguous_springs = record.contiguous_springs;
+        new_rec.contiguous_springs.erase(new_rec.contiguous_springs.begin());
+
+        perms.emplace_back(new_rec);
+    }
+
+    return perms;
+}
+
+uint64_t find_combinations_recursive(record_t record, map<record_t, uint64_t> &cache)
+{
+    // If we have solved the problem before we just return the cached value
+    if (cache.find(record) != cache.end())
+        return cache.at(record);
+
+
+    if (record.springs.empty())
+    {
+        if (record.contiguous_springs.empty())
+        {
+            cache.insert({record, 1});
+            return 1;
+        }
+        else
+        {
+            cache.insert({record, 0});
+            return 0;
+        }
+    }
+    else if (record.contiguous_springs.empty())
+    {
+        bool valid = true;
+        for (auto spring : record.springs)
+        {
+            if (spring == '#')
+            {
+                valid = false;
+                break;
+            }
+        }
+        if (valid)
+        {
+            cache.insert({record, 1});
+            return 1;
+        }
+        else
+        {
+            cache.insert({record, 0});
+            return 0;
+        }
+    }
+    else if (record.springs.length() < record.contiguous_springs.at(0))
+    {
+        cache.insert({record, 0});
+        return 0;
+    }
+
+    // If it was not cached we need to calculate the value
+    vector<record_t> perms = generate_permutations_for_first_spring(record);
+    uint64_t sum {};
+
+    for (auto perm : perms)
+        sum += find_combinations_recursive(perm, cache);
+
+    // Add the calculated value to the cache
+    cache.insert({record, sum});
+
+    return sum;
+}
+
+uint64_t find_all_combinations_recursive(const vector<string> &records)
+{
+    uint64_t combinations {};
+    map<record_t, uint64_t> cache;
+    for (auto &record: records)
+        combinations += find_combinations_recursive(parse_record(record), cache);
+
+    return combinations;
+}
+
 int main()
 {
     auto start_time = chrono::high_resolution_clock::now();
@@ -237,10 +386,17 @@ int main()
 
     file.close();
 
-    // Part 1
-    cout << "The number of combinations of springs are: " << find_all_combinations(records) << endl;
+    if (!PART_1)
+        records = unfold(records);
 
+    // Part 1
+    if (PART_1)
+        cout << "The number of combinations of springs are: " << find_all_combinations(records) << endl;
     // Part 2
+    else
+        cout << "The number of combinations of the unfolded springs are: " << find_all_combinations_recursive(records) << endl;
+
+
 
     auto end_time = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end_time - start_time);
