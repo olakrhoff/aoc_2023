@@ -78,8 +78,7 @@ typedef struct record
 
     bool operator==(const record &rhs) const
     {
-        return springs == rhs.springs &&
-               contiguous_springs == rhs.contiguous_springs;
+        return contiguous_springs == rhs.contiguous_springs && springs == rhs.springs;
     }
 
     bool operator!=(const record &rhs) const
