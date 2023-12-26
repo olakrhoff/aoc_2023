@@ -12,14 +12,14 @@ using namespace std;
 
 typedef enum TYPES
 {
-    MOVEABLE,
-    IMMOVEABLE
+    MOVABLE,
+    IMMOVABLE
 } TYPES_T;
 
 typedef struct coord
 {
     uint64_t row {}, col {};
-    TYPES_T type {MOVEABLE};
+    TYPES_T type {MOVABLE};
 
     bool operator<(const coord &rhs) const
     {
@@ -68,144 +68,46 @@ typedef enum DIRECTIONS
     EAST
 } DIRECTIONS_T;
 
-void tilt_in_direction(set<coord_t> &rocks, uint64_t max_row, uint64_t max_col, DIRECTIONS_T dir)
+void rotate_counter_clockwise(set<coord_t> &rocks, uint64_t max_row, uint64_t max_col)
 {
-    bool changed {false};
-    switch (dir)
+    set<coord_t> new_rocks {};
+    for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
+        new_rocks.insert({(*itr).col, max_col - (*itr).row - 1, (*itr).type});
+
+    rocks = new_rocks;
+}
+
+void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64_t max_col, DIRECTIONS_T dir)
+{
+    for (int i = 0; i < (dir + 3) % 4; ++i)
+        rotate_counter_clockwise(rocks, max_row, max_col);
+
+    set<coord_t> new_rocks {};
+    for (int row = 0; row < max_row; ++row)
     {
-        case NORTH:
-            do
+        uint64_t movable_rocks_count {};
+        for (int col = max_col; col >= 0; --col)
+        {
+            if (rocks.contains({(uint64_t)row, (uint64_t)col, IMMOVABLE}))
             {
-                changed = false;
-                for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
+                for (int i = 0; i < movable_rocks_count; ++i)
                 {
-                    coord_t current = (*itr);
-                    if (current.row == 0 || current.type == IMMOVEABLE)
-                        continue;
-
-                    coord_t temp = current;
-                    temp.row--;
-                    while (rocks.find(temp) == rocks.end() && rocks.find({temp.row, temp.col, IMMOVEABLE}) == rocks.end())
-                    {
-                        if (temp.row == 0)
-                            break;
-                        temp.row--;
-                    }
-                    if (rocks.find(temp) != rocks.end() || rocks.find({temp.row, temp.col, IMMOVEABLE}) != rocks.end())
-                        temp.row++;
-
-                    if (current == temp)
-                        continue;
-
-                    itr = rocks.erase(itr);
-                    rocks.insert(temp);
-                    changed = true;
-
-                    if (itr == rocks.end())
-                        break;
+                    new_rocks.insert({(uint64_t)row, (uint64_t)col + i + 1, MOVABLE});
                 }
-            } while (changed);
-            break;
-        case WEST:
-            do
-            {
-                changed = false;
-                for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
-                {
-                    coord_t current = (*itr);
-                    if (current.col == 0 || current.type == IMMOVEABLE)
-                        continue;
-
-                    coord_t temp = current;
-                    temp.col--;
-                    while (rocks.find(temp) == rocks.end() && rocks.find({temp.row, temp.col, IMMOVEABLE}) == rocks.end())
-                    {
-                        if (temp.col == 0)
-                            break;
-                        temp.col--;
-                    }
-                    if (rocks.find(temp) != rocks.end() || rocks.find({temp.row, temp.col, IMMOVEABLE}) != rocks.end())
-                        temp.col++;
-
-                    if (current == temp)
-                        continue;
-
-                    itr = rocks.erase(itr);
-                    rocks.insert(temp);
-                    changed = true;
-
-                    if (itr == rocks.end())
-                        break;
-                }
-            } while (changed);
-            break;
-        case SOUTH:
-            do
-            {
-                changed = false;
-                for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
-                {
-                    coord_t current = (*itr);
-                    if (current.row == max_row - 1 || current.type == IMMOVEABLE)
-                        continue;
-
-                    coord_t temp = current;
-                    temp.row++;
-                    while (rocks.find(temp) == rocks.end() && rocks.find({temp.row, temp.col, IMMOVEABLE}) == rocks.end())
-                    {
-                        if (temp.row == max_row - 1)
-                            break;
-                        temp.row++;
-                    }
-                    if (rocks.find(temp) != rocks.end() || rocks.find({temp.row, temp.col, IMMOVEABLE}) != rocks.end())
-                        temp.row--;
-
-                    if (current == temp)
-                        continue;
-
-                    itr = rocks.erase(itr);
-                    rocks.insert(temp);
-                    changed = true;
-
-                    if (itr == rocks.end())
-                        break;
-                }
-            } while (changed);
-            break;
-        case EAST:
-            do
-            {
-                changed = false;
-                for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
-                {
-                    coord_t current = (*itr);
-                    if (current.col == max_col - 1 || current.type == IMMOVEABLE)
-                        continue;
-
-                    coord_t temp = current;
-                    temp.col++;
-                    while (rocks.find(temp) == rocks.end() && rocks.find({temp.row, temp.col, IMMOVEABLE}) == rocks.end())
-                    {
-                        if (temp.col == max_col - 1)
-                            break;
-                        temp.col++;
-                    }
-                    if (rocks.find(temp) != rocks.end() || rocks.find({temp.row, temp.col, IMMOVEABLE}) != rocks.end())
-                        temp.col--;
-
-                    if (current == temp)
-                        continue;
-
-                    itr = rocks.erase(itr);
-                    rocks.insert(temp);
-                    changed = true;
-
-                    if (itr == rocks.end())
-                        break;
-                }
-            } while (changed);
-            break;
+                new_rocks.insert({(uint64_t)row, (uint64_t)col, IMMOVABLE});
+                movable_rocks_count = 0;
+            }
+            else if (rocks.contains({(uint64_t)row, (uint64_t)col, MOVABLE}))
+                movable_rocks_count++;
+        }
+        for (int i = 0; i < movable_rocks_count; ++i)
+            new_rocks.insert({(uint64_t)row, (uint64_t)i, MOVABLE});
     }
+
+    rocks = new_rocks;
+
+    for (int i = 0; i < (8 - (dir + 3)) % 4; ++i)
+        rotate_counter_clockwise(rocks, max_row, max_col);
 }
 
 set<coord_t> parse_to_rocks(const vector<string> &grid)
@@ -222,9 +124,9 @@ set<coord_t> parse_to_rocks(const vector<string> &grid)
             new_coord.col = col;
 
             if (grid.at(row).at(col) == 'O')
-                new_coord.type = MOVEABLE;
+                new_coord.type = MOVABLE;
             else
-                new_coord.type = IMMOVEABLE;
+                new_coord.type = IMMOVABLE;
 
             rocks.insert(new_coord);
         }
@@ -243,7 +145,7 @@ uint64_t find_north_load(vector<string> &grid)
     uint64_t load {};
 
     for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
-        if ((*itr).type == MOVEABLE)
+        if ((*itr).type == MOVABLE)
             load += max_col - (*itr).row;
 
     return load;
@@ -255,9 +157,9 @@ void print_rock(const set<coord_t> &rocks, uint64_t max_row, uint64_t max_col)
     {
         for (uint64_t col = 0; col < max_col; ++col)
         {
-            if (rocks.contains({row, col, MOVEABLE}))
+            if (rocks.contains({row, col, MOVABLE}))
                 cout << 'O';
-            else if (rocks.contains({row, col, IMMOVEABLE}))
+            else if (rocks.contains({row, col, IMMOVABLE}))
                 cout << '#';
             else
                 cout << '.';
@@ -267,50 +169,50 @@ void print_rock(const set<coord_t> &rocks, uint64_t max_row, uint64_t max_col)
 }
 
 const set<coord_t> SOLUTION = {
-        {0, 5, IMMOVEABLE},
+        {0, 5, IMMOVABLE},
 
-        {1, 4, IMMOVEABLE},
-        {1, 8, MOVEABLE},
-        {1, 9, IMMOVEABLE},
+        {1, 4, IMMOVABLE},
+        {1, 8, MOVABLE},
+        {1, 9, IMMOVABLE},
 
-        {2, 5, IMMOVEABLE},
-        {2, 6, IMMOVEABLE},
+        {2, 5, IMMOVABLE},
+        {2, 6, IMMOVABLE},
 
-        {3, 3, IMMOVEABLE},
+        {3, 3, IMMOVABLE},
 
-        {4, 5, MOVEABLE},
-        {4, 6, MOVEABLE},
-        {4, 7, MOVEABLE},
-        {4, 8, IMMOVEABLE},
+        {4, 5, MOVABLE},
+        {4, 6, MOVABLE},
+        {4, 7, MOVABLE},
+        {4, 8, IMMOVABLE},
 
-        {5, 1, MOVEABLE},
-        {5, 2, IMMOVEABLE},
-        {5, 6, MOVEABLE},
-        {5, 7, IMMOVEABLE},
-        {5, 9, IMMOVEABLE},
+        {5, 1, MOVABLE},
+        {5, 2, IMMOVABLE},
+        {5, 6, MOVABLE},
+        {5, 7, IMMOVABLE},
+        {5, 9, IMMOVABLE},
 
-        {6, 4, MOVEABLE},
-        {6, 5, IMMOVEABLE},
-        {6, 9, MOVEABLE},
+        {6, 4, MOVABLE},
+        {6, 5, IMMOVABLE},
+        {6, 9, MOVABLE},
 
-        {7, 6, MOVEABLE},
-        {7, 7, MOVEABLE},
-        {7, 8, MOVEABLE},
-        {7, 9, MOVEABLE},
+        {7, 6, MOVABLE},
+        {7, 7, MOVABLE},
+        {7, 8, MOVABLE},
+        {7, 9, MOVABLE},
 
-        {8, 0, IMMOVEABLE},
-        {8, 5, IMMOVEABLE},
-        {8, 6, IMMOVEABLE},
-        {8, 7, IMMOVEABLE},
-        {8, 9, MOVEABLE},
+        {8, 0, IMMOVABLE},
+        {8, 5, IMMOVABLE},
+        {8, 6, IMMOVABLE},
+        {8, 7, IMMOVABLE},
+        {8, 9, MOVABLE},
 
-        {9, 0, IMMOVEABLE},
-        {9, 2, MOVEABLE},
-        {9, 3, MOVEABLE},
-        {9, 4, MOVEABLE},
-        {9, 5, IMMOVEABLE},
-        {9, 8, MOVEABLE},
-        {9, 9, MOVEABLE},
+        {9, 0, IMMOVABLE},
+        {9, 2, MOVABLE},
+        {9, 3, MOVABLE},
+        {9, 4, MOVABLE},
+        {9, 5, IMMOVABLE},
+        {9, 8, MOVABLE},
+        {9, 9, MOVABLE},
 };
 
 uint64_t find_north_load_after_cycles(vector<string> &grid, uint64_t cycles)
@@ -337,14 +239,21 @@ uint64_t find_north_load_after_cycles(vector<string> &grid, uint64_t cycles)
             cache.insert({rocks, (uint64_t)i});
         //print_rock(rocks, max_row, max_col);
         //cout << endl;
-        for (int c = 0; c < 4; ++c)
-            tilt_in_direction(rocks, max_row, max_col, (DIRECTIONS_T)c);
+//        for (int c = 0; c < 4; ++c)
+  //      {
+            //print_rock(rocks, max_row, max_col);
+            //cout << endl;
+            tilt_in_direction(rocks, max_row, max_col, NORTH);
+            tilt_in_direction(rocks, max_row, max_col, WEST);
+            tilt_in_direction(rocks, max_row, max_col, SOUTH);
+            tilt_in_direction(rocks, max_row, max_col, EAST);
+    //    }
     }
-    print_rock(rocks, max_row, max_col);
+    //print_rock(rocks, max_row, max_col);
     uint64_t load {};
 
     for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
-        if ((*itr).type == MOVEABLE)
+        if ((*itr).type == MOVABLE)
             load += max_col - (*itr).row;
 
     return load;
