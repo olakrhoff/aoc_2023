@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <algorithm>
 
 using namespace std;
 
@@ -20,6 +21,11 @@ typedef struct coord
 {
     uint64_t row {}, col {};
     TYPES_T type {MOVABLE};
+
+    coord() = default;
+
+    coord(uint64_t row, uint64_t col, TYPES_T type) : row(row), col(col), type(type)
+    {}
 
     bool operator<(const coord &rhs) const
     {
@@ -68,19 +74,36 @@ typedef enum DIRECTIONS
     EAST
 } DIRECTIONS_T;
 
-void rotate_counter_clockwise(set<coord_t> &rocks, uint64_t max_row, uint64_t max_col)
+void rotate_clockwise(set<coord_t> &rocks, uint64_t max_row, uint64_t max_col, uint64_t rotations)
 {
     set<coord_t> new_rocks {};
-    for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
-        new_rocks.insert({(*itr).col, max_col - (*itr).row - 1, (*itr).type});
-
+    switch (rotations)
+    {
+        case 0:
+            return;
+        case 1:
+            for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
+                new_rocks.insert({(*itr).col, max_col - (*itr).row - 1, (*itr).type});
+            break;
+        case 2:
+            for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
+                new_rocks.insert({max_row - (*itr).row - 1, max_col - (*itr).col - 1, (*itr).type});
+            break;
+        case 3:
+            for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
+                new_rocks.insert({max_row - (*itr).col - 1, (*itr).row, (*itr).type});
+            break;
+        default:
+            cout << "Number of rotations should not exceed 3" << endl;
+            exit(1);
+    }
     rocks = new_rocks;
 }
 
 void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64_t max_col, DIRECTIONS_T dir)
 {
-    for (int i = 0; i < (dir + 3) % 4; ++i)
-        rotate_counter_clockwise(rocks, max_row, max_col);
+    uint64_t rotations = (dir + 3) % 4;
+    rotate_clockwise(rocks, max_row, max_col, rotations);
 
     set<coord_t> new_rocks {};
     for (int row = 0; row < max_row; ++row)
@@ -106,8 +129,8 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
 
     rocks = new_rocks;
 
-    for (int i = 0; i < (8 - (dir + 3)) % 4; ++i)
-        rotate_counter_clockwise(rocks, max_row, max_col);
+    uint64_t reverse_rotation = (8 - (dir + 3)) % 4;
+    rotate_clockwise(rocks, max_row, max_col, reverse_rotation);
 }
 
 set<coord_t> parse_to_rocks(const vector<string> &grid)
@@ -167,53 +190,6 @@ void print_rock(const set<coord_t> &rocks, uint64_t max_row, uint64_t max_col)
         cout << endl;
     }
 }
-
-const set<coord_t> SOLUTION = {
-        {0, 5, IMMOVABLE},
-
-        {1, 4, IMMOVABLE},
-        {1, 8, MOVABLE},
-        {1, 9, IMMOVABLE},
-
-        {2, 5, IMMOVABLE},
-        {2, 6, IMMOVABLE},
-
-        {3, 3, IMMOVABLE},
-
-        {4, 5, MOVABLE},
-        {4, 6, MOVABLE},
-        {4, 7, MOVABLE},
-        {4, 8, IMMOVABLE},
-
-        {5, 1, MOVABLE},
-        {5, 2, IMMOVABLE},
-        {5, 6, MOVABLE},
-        {5, 7, IMMOVABLE},
-        {5, 9, IMMOVABLE},
-
-        {6, 4, MOVABLE},
-        {6, 5, IMMOVABLE},
-        {6, 9, MOVABLE},
-
-        {7, 6, MOVABLE},
-        {7, 7, MOVABLE},
-        {7, 8, MOVABLE},
-        {7, 9, MOVABLE},
-
-        {8, 0, IMMOVABLE},
-        {8, 5, IMMOVABLE},
-        {8, 6, IMMOVABLE},
-        {8, 7, IMMOVABLE},
-        {8, 9, MOVABLE},
-
-        {9, 0, IMMOVABLE},
-        {9, 2, MOVABLE},
-        {9, 3, MOVABLE},
-        {9, 4, MOVABLE},
-        {9, 5, IMMOVABLE},
-        {9, 8, MOVABLE},
-        {9, 9, MOVABLE},
-};
 
 uint64_t find_north_load_after_cycles(vector<string> &grid, uint64_t cycles)
 {
