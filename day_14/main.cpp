@@ -18,12 +18,12 @@ typedef enum TYPES
 
 typedef struct coord
 {
-    uint64_t row {}, col {};
+    uint8_t row {}, col {};
     TYPES_T type {MOVABLE};
 
     coord() = default;
 
-    coord(uint64_t row, uint64_t col, TYPES_T type) : row(row), col(col), type(type)
+    coord(uint8_t row, uint8_t col, TYPES_T type) : row(row), col(col), type(type)
     {}
 
     bool operator<(const coord &rhs) const
@@ -73,7 +73,7 @@ typedef enum DIRECTIONS
     EAST
 } DIRECTIONS_T;
 
-void rotate_clockwise(set<coord_t> &rocks, uint64_t max_row, uint64_t max_col, uint64_t rotations)
+void rotate_clockwise(set<coord_t> &rocks, uint8_t max_row, uint8_t max_col, uint8_t rotations)
 {
     set<coord_t> new_rocks {};
     switch (rotations)
@@ -82,15 +82,15 @@ void rotate_clockwise(set<coord_t> &rocks, uint64_t max_row, uint64_t max_col, u
             return;
         case 1:
             for (const auto &rock: rocks)
-                new_rocks.insert({rock.col, max_col - rock.row - 1, rock.type});
+                new_rocks.insert({rock.col, (uint8_t) (max_col - rock.row - 1), rock.type});
             break;
         case 2:
             for (const auto &rock: rocks)
-                new_rocks.insert({max_row - rock.row - 1, max_col - rock.col - 1, rock.type});
+                new_rocks.insert({(uint8_t) (max_row - rock.row - 1), (uint8_t) (max_col - rock.col - 1), rock.type});
             break;
         case 3:
             for (const auto &rock: rocks)
-                new_rocks.insert({max_row - rock.col - 1, rock.row, rock.type});
+                new_rocks.insert({(uint8_t) (max_row - rock.col - 1), rock.row, rock.type});
             break;
         default:
             cout << "Number of rotations should not exceed 3" << endl;
@@ -99,12 +99,12 @@ void rotate_clockwise(set<coord_t> &rocks, uint64_t max_row, uint64_t max_col, u
     rocks = new_rocks;
 }
 
-void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64_t max_col)
+void tilt_in_direction(set<coord_t> &rocks, const uint8_t max_row, const uint8_t max_col)
 {
     set<coord_t> new_rocks {};
     bool first {true};
-    uint64_t movable_rocks_count {};
-    uint64_t movable_rocks_row {};
+    uint8_t movable_rocks_count {};
+    uint8_t movable_rocks_row {};
     for (auto r_itr = rocks.rbegin(); r_itr != rocks.rend(); r_itr++)
     {
         coord_t current = *r_itr;
@@ -112,10 +112,10 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
         {
             if (movable_rocks_row != current.row)
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    new_rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+                    new_rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
             else
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    new_rocks.insert({current.row, current.col + i + 1, MOVABLE});
+                    new_rocks.insert({current.row, (uint8_t) (current.col + i + 1), MOVABLE});
 
             new_rocks.insert(current);
             movable_rocks_count = 0;
@@ -131,7 +131,7 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
             else if (movable_rocks_row != current.row)
             {
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    new_rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+                    new_rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
                 movable_rocks_count = 0;
                 movable_rocks_row = current.row;
             }
@@ -139,14 +139,14 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
         }
     }
     for (int i = 0; i < movable_rocks_count; ++i)
-        new_rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+        new_rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
 
     // Prepare for the next tilt
     rotate_clockwise(new_rocks, max_row, max_col, 1);
 
 
     rocks = {};
-    first  = true;
+    first = true;
     movable_rocks_count = 0;
     movable_rocks_row = 0;
     for (auto r_itr = new_rocks.rbegin(); r_itr != new_rocks.rend(); r_itr++)
@@ -156,10 +156,10 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
         {
             if (movable_rocks_row != current.row)
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+                    rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
             else
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    rocks.insert({current.row, current.col + i + 1, MOVABLE});
+                    rocks.insert({current.row, (uint8_t) (current.col + i + 1), MOVABLE});
 
             rocks.insert(current);
             movable_rocks_count = 0;
@@ -175,7 +175,7 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
             else if (movable_rocks_row != current.row)
             {
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+                    rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
                 movable_rocks_count = 0;
                 movable_rocks_row = current.row;
             }
@@ -183,13 +183,13 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
         }
     }
     for (int i = 0; i < movable_rocks_count; ++i)
-        rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+        rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
 
     // Prepare for the next tilt
     rotate_clockwise(rocks, max_row, max_col, 1);
 
     new_rocks = {};
-    first  = true;
+    first = true;
     movable_rocks_count = 0;
     movable_rocks_row = 0;
     for (auto r_itr = rocks.rbegin(); r_itr != rocks.rend(); r_itr++)
@@ -199,10 +199,10 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
         {
             if (movable_rocks_row != current.row)
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    new_rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+                    new_rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
             else
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    new_rocks.insert({current.row, current.col + i + 1, MOVABLE});
+                    new_rocks.insert({current.row, (uint8_t) (current.col + i + 1), MOVABLE});
 
             new_rocks.insert(current);
             movable_rocks_count = 0;
@@ -218,7 +218,7 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
             else if (movable_rocks_row != current.row)
             {
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    new_rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+                    new_rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
                 movable_rocks_count = 0;
                 movable_rocks_row = current.row;
             }
@@ -226,13 +226,13 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
         }
     }
     for (int i = 0; i < movable_rocks_count; ++i)
-        new_rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+        new_rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
 
     // Prepare for the next tilt
     rotate_clockwise(new_rocks, max_row, max_col, 1);
 
     rocks = {};
-    first  = true;
+    first = true;
     movable_rocks_count = 0;
     movable_rocks_row = 0;
     for (auto r_itr = new_rocks.rbegin(); r_itr != new_rocks.rend(); r_itr++)
@@ -242,10 +242,10 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
         {
             if (movable_rocks_row != current.row)
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+                    rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
             else
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    rocks.insert({current.row, current.col + i + 1, MOVABLE});
+                    rocks.insert({current.row, (uint8_t) (current.col + i + 1), MOVABLE});
 
             rocks.insert(current);
             movable_rocks_count = 0;
@@ -261,7 +261,7 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
             else if (movable_rocks_row != current.row)
             {
                 for (int i = 0; i < movable_rocks_count; ++i)
-                    rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+                    rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
                 movable_rocks_count = 0;
                 movable_rocks_row = current.row;
             }
@@ -269,7 +269,7 @@ void tilt_in_direction(set<coord_t> &rocks, const uint64_t max_row, const uint64
         }
     }
     for (int i = 0; i < movable_rocks_count; ++i)
-        rocks.insert({movable_rocks_row, (uint64_t) i, MOVABLE});
+        rocks.insert({movable_rocks_row, (uint8_t) i, MOVABLE});
 
     // Prepare for the next tilt
     rotate_clockwise(rocks, max_row, max_col, 1);
@@ -318,9 +318,9 @@ uint64_t find_north_load(vector<string> &grid)
 
 void print_rock(const set<coord_t> &rocks, uint64_t max_row, uint64_t max_col)
 {
-    for (uint64_t row = 0; row < max_row; ++row)
+    for (uint8_t row = 0; row < max_row; ++row)
     {
-        for (uint64_t col = 0; col < max_col; ++col)
+        for (uint8_t col = 0; col < max_col; ++col)
         {
             if (rocks.contains({row, col, MOVABLE}))
                 cout << 'O';
@@ -354,7 +354,7 @@ uint64_t find_north_load_after_cycles(vector<string> &grid, uint64_t cycles)
 
             i = cycles - (remaining % (current - prev));
             uint64_t iteration = cycles - i;
-            for (auto [key, val] : cache)
+            for (auto [key, val]: cache)
                 if (val == iteration + prev)
                 {
                     rocks = key;
@@ -368,14 +368,10 @@ uint64_t find_north_load_after_cycles(vector<string> &grid, uint64_t cycles)
 
         //cout << endl;
         //print_rock(rocks, max_row, max_col);
-        //cout << endl;
         tilt_in_direction(rocks, max_row, max_col);
-        //tilt_in_direction(rocks, max_row, max_col);
-        //tilt_in_direction(rocks, max_row, max_col);
-        //tilt_in_direction(rocks, max_row, max_col);
     }
     rotate_clockwise(rocks, max_row, max_col, 1); // Correct the init shift of north to west
-    //print_rock(rocks, max_row, max_col);
+
     uint64_t load {};
 
     for (auto itr = rocks.begin(); itr != rocks.end(); itr++)
@@ -411,7 +407,7 @@ int main()
     // Part 1
     if (PART_1)
         cout << "The load on the north beam is: " << find_north_load(grid) << endl;
-        // Part 2
+    // Part 2
     else
         cout << "The load on the north beam after " << CYCLES << " cycles is: "
              << find_north_load_after_cycles(grid, CYCLES) << endl;
