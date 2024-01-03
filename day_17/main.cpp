@@ -20,13 +20,13 @@ typedef enum DIRECTIONS
 
 typedef struct coord
 {
-    int row {}, col {};
+    int16_t row {}, col {};
     DIRECTIONS_T dir {UNKNOWN};
-    int moves_left {};
+    int8_t moves_left {};
 
     coord() = default;
 
-    coord(int row, int col, DIRECTIONS_T dir, int moves_left) : row(row), col(col), dir(dir), moves_left(moves_left)
+    coord(int16_t row, int16_t col, DIRECTIONS_T dir, int8_t moves_left) : row(row), col(col), dir(dir), moves_left(moves_left)
     {}
 
     bool operator<(const coord &rhs) const
@@ -67,25 +67,26 @@ typedef struct coord
     {
         return !(*this == rhs);
     }
+
+    int diff(const coord &rhs) const
+    {
+        return abs(rhs.row - row) + abs(rhs.col - col);
+    }
 } coord_t;
 
-vector<coord_t> get_moves(pair<uint64_t, coord_t> state, int max_row, int max_col)
+vector<coord_t> get_moves(coord_t state, int max_row, int max_col)
 {
     vector<coord_t> moves {};
 
-    coord_t current = state.second;
-
-    int current_moves_left = current.moves_left;
-    DIRECTIONS_T current_dir = current.dir;
     // First we find all neighbours of the grid cell, that does not move in the direction we came from
-    if (current.dir != SOUTH)
-        moves.emplace_back(current.row - 1, current.col, NORTH, NORTH == current_dir ? current_moves_left - 1 : 2);
-    if (current.dir != EAST)
-        moves.emplace_back(current.row, current.col - 1, WEST, WEST == current_dir ? current_moves_left - 1 : 2);
-    if (current.dir != NORTH)
-        moves.emplace_back(current.row + 1, current.col, SOUTH, SOUTH == current_dir ? current_moves_left - 1 : 2);
-    if (current.dir != WEST)
-        moves.emplace_back(current.row, current.col + 1, EAST, EAST == current_dir ? current_moves_left - 1 : 2);
+    if (state.dir != SOUTH)
+        moves.emplace_back(state.row - 1, state.col, NORTH, NORTH == state.dir ? state.moves_left - 1 : 2);
+    if (state.dir != EAST)
+        moves.emplace_back(state.row, state.col - 1, WEST, WEST == state.dir ? state.moves_left - 1 : 2);
+    if (state.dir != NORTH)
+        moves.emplace_back(state.row + 1, state.col, SOUTH, SOUTH == state.dir ? state.moves_left - 1 : 2);
+    if (state.dir != WEST)
+        moves.emplace_back(state.row, state.col + 1, EAST, EAST == state.dir ? state.moves_left - 1 : 2);
 
     // Filter out those out of bound
     vector<coord_t> filtered_moves {};
@@ -96,48 +97,41 @@ vector<coord_t> get_moves(pair<uint64_t, coord_t> state, int max_row, int max_co
     return filtered_moves;
 }
 
-class Compare
-{
-public:
-    bool operator()(pair<coord_t, uint64_t> below, pair<coord_t, uint64_t> above)
-    {
-        return below.second > above.second;
-    }
-};
-
 // We want a BFS, from the top left to the bottom right, that has a
-// maximum of three consecutive moves in the same direction
-uint64_t minimise_heat_loss(const vector<string> &grid)
+// maximum of three consecutive moves in the same direction.
+// Adding A-Star will further increase our speed
+uint16_t minimise_heat_loss(const vector<string> &grid)
 {
     coord_t start {0, 0, UNKNOWN, 3};
-    coord_t end {(int) (grid.size() - 1), (int) (grid.at(0).size() - 1), UNKNOWN, 0};
+    coord_t end {(int16_t) (grid.size() - 1), (int16_t) (grid.at(0).size() - 1), UNKNOWN, 0};
     int max_row = grid.size();
     int max_col = grid.at(0).size();
 
-    priority_queue<pair<uint64_t, coord_t>, vector<pair<uint64_t, coord_t>>, greater<>> coords {};
-    coords.emplace(0, start);
+    priority_queue<tuple<uint16_t, uint16_t, coord_t>, vector<tuple<uint16_t, uint16_t, coord_t>>, greater<>> coords {};
+    coords.emplace(start.diff(end), 0, start);
 
     set<coord_t> visited {};
     while (!coords.empty())
     {
-        pair<uint64_t, coord_t> current = coords.top();
+        uint16_t theoretical_min_heat_loss;
+        uint16_t heat_loss;
+        coord_t current_coord;
+        tie(theoretical_min_heat_loss, heat_loss, current_coord) = coords.top();
         coords.pop();
 
-        if (current.second.row == end.row && current.second.col == end.col)
-            return current.first;
-        if (visited.contains(current.second)) // We have a difference in state
+        if (current_coord.row == end.row && current_coord.col == end.col)
+            return heat_loss;
+        if (visited.contains(current_coord))
             continue;
-        visited.insert(current.second);
+        visited.insert(current_coord);
 
 
-        uint64_t heat_loss = current.first;
-
-        vector<coord_t> next_moves = get_moves(current, max_row, max_col);
+        vector<coord_t> next_moves = get_moves(current_coord, max_row, max_col);
 
         for (auto move: next_moves)
         {
-            uint64_t heat_loss_at_move = grid.at(move.row).at(move.col) - '0'; // Here we offset the char number value by the ASCII '0' to get correct number
-            coords.emplace(heat_loss + heat_loss_at_move, move);
+            uint16_t heat_loss_at_move = grid.at(move.row).at(move.col) - '0'; // Here we offset the char number value by the ASCII '0' to get correct number
+            coords.emplace(move.diff(end) + heat_loss + heat_loss_at_move, heat_loss + heat_loss_at_move, move);
         }
     }
 
