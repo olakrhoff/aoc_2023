@@ -230,25 +230,29 @@ bool send_pulse_and_check_end(const string &start, const string &end,
     return false;
 }
 
-uint64_t find_min_steps(map<string, tuple<vector<string>, TYPE_T, bool>> &adjacent,
+uint64_t find_min(map<string, tuple<vector<string>, TYPE_T, bool>> &adjacent,
                         map<string, vector<pair<string, bool>>> &conjunction_map,
-                        const string &current, const string &end)
+                        const string &current, bool state)
 {
-    if (!adjacent.contains(current))
-    {
-        auto conjunction = conjunction_map.at(current);
-        uint64_t steps {1};
-        for (auto [name, val] : conjunction)
-            steps *= find_min_steps(adjacent, conjunction_map, name, end);
-
-        return steps;
-    }
-
     TYPE_T type = get<1>(adjacent.at(current));
     switch (type)
     {
         case NONE:
-            return 1;
+            if (current == "rx")
+            {
+                cout << "Hmmm, we have a loop" << endl;
+                exit(EXIT_FAILURE);
+            }
+            if (current == "broadcaster")
+            {
+                return 1;
+            }
+            else
+            {
+                cout << "What is this, it should have a type: " << current << endl;
+                exit(EXIT_FAILURE);
+            }
+            break;
         case FLIP_FLOP:
         {
 
@@ -260,6 +264,64 @@ uint64_t find_min_steps(map<string, tuple<vector<string>, TYPE_T, bool>> &adjace
             break;
         }
     }
+}
+
+uint64_t find_min_steps(map<string, tuple<vector<string>, TYPE_T, bool>> &adjacent,
+                        map<string, vector<pair<string, bool>>> &conjunction_map,
+                        const string &current)
+{
+    auto conjunction = conjunction_map.at(current);
+    uint64_t min_steps = numeric_limits<uint64_t>::max();
+    for (auto [name, val] : conjunction)
+    {
+        auto steps = find_min(adjacent, conjunction_map, name, false);
+        if (steps < min_steps)
+            min_steps = steps;
+    }
+    return min_steps;
+}
+
+void create_graph(const map<string, tuple<vector<string>, TYPE_T, bool>> &adjacent, const string &filename)
+{
+    ofstream file;
+    file.open(filename);
+    string start = "digraph G \n{\n";
+    file.write(start.data(), start.length());
+    for (auto [name, val] : adjacent)
+    {
+        vector<string> list;
+        TYPE_T type;
+        bool state;
+        tie(list,type, state) = val;
+
+        string temp = "\t";
+        switch (type)
+        {
+            case NONE:
+                break;
+            case FLIP_FLOP:
+                temp += name + " [color=red, shape=triangle]\n\t";
+                break;
+            case CONJUNCTION:
+                temp += name + " [color=blue, shape=diamond]\n\t";
+                break;
+        }
+        temp += name + " -> ";
+
+        temp += "{";
+        for (int i = 0; i < list.size(); ++i)
+        {
+            temp += list.at(i);
+            if (i < list.size() - 1)
+                temp += ", ";
+        }
+        temp += "}\n";
+        file.write(temp.data(), temp.length());
+    }
+    file.write("}", 1);
+    file.close();
+    string command = "dot -Tpng " + filename + " -o ../graph.png";
+    system(command.data());
 }
 
 int main()
@@ -284,13 +346,16 @@ int main()
     }
 
     file.close();
+
+    create_graph(adjacent, "../graph.gv");
+
     auto conjunction_map = create_conjunction_map(adjacent);
     // Part 1
     if (PART_1)
         cout << "Total pulses sent: " << find_pulses_sent(adjacent, conjunction_map, 1000, "broadcaster") << endl;
     // Part 2
     else
-        cout << "Minimum steps to activate rx: " << find_min_steps(adjacent, conjunction_map, "rx", "broadcaster")
+        cout << "Minimum steps to activate rx: " << find_min_steps(adjacent, conjunction_map, "rx")
              << endl;
 
     auto end_time = chrono::high_resolution_clock::now();
