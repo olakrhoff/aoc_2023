@@ -171,10 +171,11 @@ map<string, vector<pair<string, bool>>> create_conjunction_map(const map<string,
     return conjunction_map;
 }
 
-bool send_pulse_and_check_end(const string &start, const string &end,
-                              map<string, tuple<vector<string>, TYPE_T, bool>> &adjacent,
-                              map<string, vector<pair<string, bool>>> &conjunction_map)
+vector<uint64_t> send_pulse_and_note(const string &start, const string &note,
+                                             map<string, tuple<vector<string>, TYPE_T, bool>> adjacent,
+                                             map<string, vector<pair<string, bool>>> conjunction_map)
 {
+    vector<uint64_t> low_signals {};
     queue<tuple<string, bool, string>> modules {};
     modules.push({start, false, start});
 
@@ -186,11 +187,11 @@ bool send_pulse_and_check_end(const string &start, const string &end,
         tie(current, signal, from) = modules.front();
         modules.pop();
 
-        if (!signal && current == end)
-            return true;
-
         if (!adjacent.contains(current))
             continue;
+
+        if (from == note)
+            low_signals.emplace_back(1);
 
         switch (get<1>(adjacent.at(current)))
         {
@@ -227,43 +228,16 @@ bool send_pulse_and_check_end(const string &start, const string &end,
                 break;
         }
     }
-    return false;
+    return low_signals;
 }
 
 uint64_t find_min(map<string, tuple<vector<string>, TYPE_T, bool>> &adjacent,
-                        map<string, vector<pair<string, bool>>> &conjunction_map,
-                        const string &current, bool state)
+                  map<string, vector<pair<string, bool>>> &conjunction_map,
+                  const string &current, bool state)
 {
-    TYPE_T type = get<1>(adjacent.at(current));
-    switch (type)
-    {
-        case NONE:
-            if (current == "rx")
-            {
-                cout << "Hmmm, we have a loop" << endl;
-                exit(EXIT_FAILURE);
-            }
-            if (current == "broadcaster")
-            {
-                return 1;
-            }
-            else
-            {
-                cout << "What is this, it should have a type: " << current << endl;
-                exit(EXIT_FAILURE);
-            }
-            break;
-        case FLIP_FLOP:
-        {
+    string test = "lf";
 
-            break;
-        }
-        case CONJUNCTION:
-        {
-
-            break;
-        }
-    }
+    auto res = send_pulse_and_note("broadcaster", test, adjacent, conjunction_map);
 }
 
 uint64_t find_min_steps(map<string, tuple<vector<string>, TYPE_T, bool>> &adjacent,
@@ -292,7 +266,7 @@ void create_graph(const map<string, tuple<vector<string>, TYPE_T, bool>> &adjace
         vector<string> list;
         TYPE_T type;
         bool state;
-        tie(list,type, state) = val;
+        tie(list, type, state) = val;
 
         string temp = "\t";
         switch (type)
@@ -353,7 +327,7 @@ int main()
     // Part 1
     if (PART_1)
         cout << "Total pulses sent: " << find_pulses_sent(adjacent, conjunction_map, 1000, "broadcaster") << endl;
-    // Part 2
+        // Part 2
     else
         cout << "Minimum steps to activate rx: " << find_min_steps(adjacent, conjunction_map, "rx")
              << endl;
