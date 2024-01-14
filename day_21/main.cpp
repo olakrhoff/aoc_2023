@@ -200,13 +200,13 @@ bool is_in_ignore_area(const coord_t &current, const vector<pair<coord_t, coord_
         if (current.row >= top_left.row &&
             current.row <= bot_right.row &&
             current.col >= top_left.col &&
-            current.col <= top_left.col)
+            current.col <= bot_right.col)
             return true;
     
     return false;
 }
 
-void update_ignore_area(const set<coord_t> &places, const set<coord_t> &grid, vector<pair<coord_t, coord_t>> &ignores, const int grid_width,
+int update_ignore_area(const set<coord_t> &places, const set<coord_t> &grid, vector<pair<coord_t, coord_t>> &ignores, const int grid_width,
                         const int grid_height)
 {
     // If there are no ignore areas yet, we check if the middle is ready to become one
@@ -218,7 +218,7 @@ void update_ignore_area(const set<coord_t> &places, const set<coord_t> &grid, ve
         bool is_odd = places.contains({OFFSET, OFFSET + 1});
         
         if (!is_even && !is_odd)
-            return; // The gird is not filled up
+            return 0; // The gird is not filled up
         
         if (is_even)
         {
@@ -229,7 +229,7 @@ void update_ignore_area(const set<coord_t> &places, const set<coord_t> &grid, ve
                     if ((row + col) % 2 == 0)
                     {
                         if (!places.contains({row, col}) && !grid.contains({row, col}))
-                            return; // Grid is not ready
+                            return 0; // Grid is not ready
                         ++col;
                     }
                 }
@@ -244,7 +244,7 @@ void update_ignore_area(const set<coord_t> &places, const set<coord_t> &grid, ve
                     if ((row + col) % 2 != 0)
                     {
                         if (!places.contains({row, col}) && !grid.contains({row, col}))
-                            return; // Grid is not ready
+                            return 0; // Grid is not ready
                         ++col;
                     }
                 }
@@ -253,10 +253,10 @@ void update_ignore_area(const set<coord_t> &places, const set<coord_t> &grid, ve
         // The entire start gird is full, it is now ready to be ignored
         ignores.emplace_back(make_pair<coord_t, coord_t>({OFFSET, OFFSET},
                                                          {OFFSET + grid_height - 1, OFFSET + grid_width - 1}));
-        return;
+        return 1;
     }
     
-    return;
+    return 0;
     cout << "unhandled" << endl;
     exit(EXIT_FAILURE);
 }
@@ -267,6 +267,7 @@ uint64_t find_number_of_garden_tiles_in_infinite_terrain(const set<coord_t> &gri
     set<coord_t> places {};
     places.emplace(start);
     vector<pair<coord_t, coord_t>> ignores {};
+    int full_areas_odd {}, full_areas_even {};
     for (int step = 0; step < STEPS_PART_2; ++step)
     {
         if (step == 6 ||
@@ -276,10 +277,10 @@ uint64_t find_number_of_garden_tiles_in_infinite_terrain(const set<coord_t> &gri
             step == 500 ||
             step == 1000 ||
             step == 5000)
-            cout << places.size() << endl;
+            cout << places.size() + full_areas_odd * odd_area_value + full_areas_even * even_area_value << endl;
         cout << endl;
-        //print_terrain(grid, grid_width, grid_height, places);
-        print_grid(grid, grid_width, grid_height, places);
+        print_terrain(grid, grid_width, grid_height, places);
+        //print_grid(grid, grid_width, grid_height, places);
         
         set<coord_t> new_places {};
         for (auto place: places)
@@ -288,7 +289,12 @@ uint64_t find_number_of_garden_tiles_in_infinite_terrain(const set<coord_t> &gri
                     !is_in_ignore_area(new_place, ignores))
                     new_places.emplace(new_place);
         
-        update_ignore_area(new_places, grid, ignores, grid_width, grid_height);
+        int new_areas = update_ignore_area(new_places, grid, ignores, grid_width, grid_height);
+
+        if (step % 2 == 0)
+            full_areas_even += new_areas;
+        else
+            full_areas_odd += new_areas;
         
         places = new_places;
     }
