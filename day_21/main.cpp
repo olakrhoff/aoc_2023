@@ -6,7 +6,7 @@
 
 using namespace std;
 
-#define DEBUG 1
+#define DEBUG 0
 #define PART_1 false
 #define DEBUG_STEPS 6
 #define STEPS 64
@@ -56,6 +56,16 @@ typedef struct coord
     {
         return !(rhs == *this);
     }
+    
+    coord operator+(const coord &rhs) const
+    {
+        return {this->row + rhs.row, this->col + rhs.col};
+    }
+    
+    coord operator-(const coord &rhs) const
+    {
+        return {this->row - rhs.row, this->col - rhs.col};
+    }
 } coord_t;
 
 vector<pair<bool, coord_t>> parse_line_to_coord(const vector<string> &grid)
@@ -76,7 +86,7 @@ vector<pair<bool, coord_t>> parse_line_to_coord(const vector<string> &grid)
     return coords;
 }
 
-vector<coord_t> possible_places(const coord_t &current)
+inline vector<coord_t> possible_places(const coord_t &current)
 {
     vector<coord_t> new_places {};
     
@@ -194,8 +204,29 @@ void print_grid(const set<coord_t> &grid, int grid_width, int grid_height, const
     }
 }
 
-bool is_in_ignore_area(const coord_t &current, const vector<pair<coord_t, coord_t>> &ignores)
+bool is_in_ignore_area(const coord_t &current, const set<coord_t> &ignores, int grid_width, int grid_height)
 {
+    // Transform to upper left corner of tile
+    // Do binary search to see if corner is in ignores
+    coord_t corner = current;
+    if (corner.row % grid_height != 0)
+    {
+        int offset = 1;
+        if (corner.row < 0)
+            offset = -1;
+        corner.row = ((corner.row / grid_height) + offset) * grid_height - offset;
+    }
+    if (corner.col % grid_width != 0)
+    {
+        int offset = 1;
+        if (corner.col < 0)
+            offset = -1;
+        corner.col = ((corner.col / grid_width) + offset) * grid_width - offset;
+    }
+    
+    return ignores.contains(corner);
+    
+    /*
     for (auto [top_left, bot_right]: ignores)
         if (current.row >= top_left.row &&
             current.row <= bot_right.row &&
@@ -204,71 +235,185 @@ bool is_in_ignore_area(const coord_t &current, const vector<pair<coord_t, coord_
             return true;
     
     return false;
+    */
 }
 
-int update_ignore_area(const set<coord_t> &places, const set<coord_t> &grid, vector<pair<coord_t, coord_t>> &ignores, const int grid_width,
-                        const int grid_height)
+// Maps a coord in the total grid to a grid coord
+coord_t get_coord_in_grid(const coord_t &current, const int grid_width, const int grid_height)
+{
+    int64_t row = current.row - OFFSET;
+    int64_t col = current.col - OFFSET;
+    
+    coord_t coord_in_grid(row / grid_height, col / grid_width);
+    if (row % grid_height != 0)
+        coord_in_grid.row--;
+    if (col % grid_width != 0)
+        coord_in_grid.col--;
+    
+    return coord_in_grid;
+}
+
+coord_t area_from_coord(const coord_t &current, const int grid_width, const int grid_height)
+{
+    coord_t upper_left(OFFSET + grid_height * current.row, OFFSET + grid_width * current.col);
+    //coord_t bottom_right(upper_left.row + grid_height - 1, upper_left.col + grid_width - 1);
+    
+    return upper_left;
+}
+
+bool is_area_full(const coord_t &current, const set<coord_t> &places, const set<coord_t> &grid, const int grid_width, const int grid_height)
+{
+    // We assume that input does not have '#' in upper left corner, or to the right of it
+    bool is_even = places.contains(current);
+    
+    bool is_odd = places.contains({current.row, current.col + 1});
+    
+    if (!is_even && !is_odd)
+        return false; // The gird is not filled up
+    
+    if (is_even)
+    {
+        for (int64_t row = current.row; row < current.row + grid_height; ++row)
+        {
+            for (int64_t col = current.col; col < current.col + grid_width; ++col)
+            {
+                if ((row + col) % 2 == 0)
+                {
+                    if (!places.contains({row, col}) && !grid.contains({(row % grid_height) + OFFSET, (col % grid_width) + OFFSET}))
+                        return false; // Grid is not ready
+                    ++col;
+                }
+            }
+        }
+    }
+    else // is odd
+    {
+        for (int64_t row = current.row; row < current.row + grid_height; ++row)
+        {
+            for (int64_t col = current.col; col < current.col + grid_width; ++col)
+            {
+                if ((row + col) % 2 != 0)
+                {
+                    if (!places.contains({row, col}) && !grid.contains({(row % grid_height) + OFFSET, (col % grid_width) + OFFSET}))
+                        return false; // Grid is not ready
+                    ++col;
+                }
+            }
+        }
+    }
+    
+    return true;
+}
+
+int update_ignore_area(const set<coord_t> &places, const set<coord_t> &grid, set<coord_t> &ignores,
+                       const int grid_width, const int grid_height)
 {
     // If there are no ignore areas yet, we check if the middle is ready to become one
     if (ignores.empty())
     {
-        // We assume that input does not have '#' in upper left corner, or to the right of it
-        bool is_even = places.contains({OFFSET, OFFSET});
+        if (!is_area_full({OFFSET, OFFSET}, places, grid, grid_width, grid_height))
+            return 0;
         
-        bool is_odd = places.contains({OFFSET, OFFSET + 1});
-        
-        if (!is_even && !is_odd)
-            return 0; // The gird is not filled up
-        
-        if (is_even)
-        {
-            for (int row = OFFSET; row < grid_height + OFFSET; ++row)
-            {
-                for (int col = OFFSET; col < grid_width + OFFSET; ++col)
-                {
-                    if ((row + col) % 2 == 0)
-                    {
-                        if (!places.contains({row, col}) && !grid.contains({row, col}))
-                            return 0; // Grid is not ready
-                        ++col;
-                    }
-                }
-            }
-        }
-        else
-        {
-            for (int row = OFFSET; row < grid_height + OFFSET; ++row)
-            {
-                for (int col = OFFSET; col < grid_width + OFFSET; ++col)
-                {
-                    if ((row + col) % 2 != 0)
-                    {
-                        if (!places.contains({row, col}) && !grid.contains({row, col}))
-                            return 0; // Grid is not ready
-                        ++col;
-                    }
-                }
-            }
-        }
         // The entire start gird is full, it is now ready to be ignored
-        ignores.emplace_back(make_pair<coord_t, coord_t>({OFFSET, OFFSET},
-                                                         {OFFSET + grid_height - 1, OFFSET + grid_width - 1}));
+        ignores.insert({OFFSET, OFFSET});
         return 1;
     }
     
-    return 0;
-    cout << "unhandled" << endl;
-    exit(EXIT_FAILURE);
+    // If we already have an ignore area we need to check the ones surrounding the current areas, this is not guaranteed to be the fastest, but a strong heuristic (assumption) that it is
+    
+    // First generate a set of all possibilities
+    set<coord_t> possible_areas {}; // These are the coords of the grid sized area in the grid og grids
+    
+    for (auto upper_left: ignores)
+    {
+        coord_t current_grid_coord = get_coord_in_grid(upper_left, grid_width, grid_height);
+        
+        coord_t outer_upper_left_coord = current_grid_coord - coord_t(1, 1);
+        coord_t outer_bottom_right_coord = current_grid_coord + coord_t(1, 1);
+        
+        // Add top and bottom side
+        for (int64_t col = outer_upper_left_coord.col; col <= outer_bottom_right_coord.col; ++col)
+        {
+            if (!is_in_ignore_area(area_from_coord({outer_upper_left_coord.row, col}, grid_width, grid_height), ignores, grid_width, grid_height))
+                possible_areas.insert({outer_upper_left_coord.row, col});
+            if (!is_in_ignore_area(area_from_coord({outer_bottom_right_coord.row, col}, grid_width, grid_height), ignores, grid_width, grid_height))
+                possible_areas.insert({outer_bottom_right_coord.row, col});
+        }
+        // Add left and right side
+        for (int64_t row = outer_upper_left_coord.row; row <= outer_bottom_right_coord.row; ++row)
+        {
+            if (!is_in_ignore_area(area_from_coord({row, outer_upper_left_coord.col}, grid_width, grid_height), ignores, grid_width, grid_height))
+                possible_areas.insert({row, outer_upper_left_coord.col});
+            if (!is_in_ignore_area(area_from_coord({row, outer_bottom_right_coord.col}, grid_width, grid_height), ignores, grid_width, grid_height))
+                possible_areas.insert({row, outer_bottom_right_coord.col});
+        }
+    }
+    
+    // Check all possibilities, if new area, add it
+    vector<coord_t> new_ignores {};
+    for (auto area: possible_areas)
+        if (is_area_full(area_from_coord(area, grid_width, grid_height), places, grid, grid_width, grid_height))
+            new_ignores.emplace_back(area_from_coord(area, grid_width, grid_height));
+    
+    for (auto ignore : new_ignores)
+        ignores.insert(ignore);
+    
+    return new_ignores.size();
+    
+    // If we added any, try and fuse the new area(s) together with the other areas to limit the number of freestanding areas
+    // TODO: Add this
+}
+
+uint64_t find_area_value(const set<coord_t> &grid, const int grid_width,
+                         const int grid_height, bool is_even)
+{
+    uint64_t sum {};
+    
+    if (is_even)
+    {
+        for (int row = OFFSET; row < grid_height + OFFSET; ++row)
+        {
+            for (int col = OFFSET; col < grid_width + OFFSET; ++col)
+            {
+                if ((row + col) % 2 == 0)
+                {
+                    if (!grid.contains({row, col}))
+                        sum++;
+                    ++col;
+                }
+            }
+        }
+    }
+    else
+    {
+        for (int row = OFFSET; row < grid_height + OFFSET; ++row)
+        {
+            for (int col = OFFSET; col < grid_width + OFFSET; ++col)
+            {
+                if ((row + col) % 2 != 0)
+                {
+                    if (!grid.contains({row, col}))
+                        sum++;
+                    ++col;
+                }
+            }
+        }
+    }
+    
+    return sum;
 }
 
 uint64_t find_number_of_garden_tiles_in_infinite_terrain(const set<coord_t> &grid, const int grid_width,
-                                                         const int grid_height, coord_t start)
+                                                         const int grid_height, coord_t start, uint64_t steps = STEPS_PART_2)
 {
+    uint64_t odd_area_value = find_area_value(grid, grid_width, grid_height, false);
+    uint64_t even_area_value = find_area_value(grid, grid_width, grid_height, true);
+    
     set<coord_t> places {};
     places.emplace(start);
-    vector<pair<coord_t, coord_t>> ignores {};
+    set<coord_t> ignores {};
     int full_areas_odd {}, full_areas_even {};
-    for (int step = 0; step < STEPS_PART_2; ++step)
+    for (int step = 0; step < steps; ++step)
     {
         if (step == 6 ||
             step == 10 ||
@@ -278,19 +423,19 @@ uint64_t find_number_of_garden_tiles_in_infinite_terrain(const set<coord_t> &gri
             step == 1000 ||
             step == 5000)
             cout << places.size() + full_areas_odd * odd_area_value + full_areas_even * even_area_value << endl;
-        cout << endl;
-        print_terrain(grid, grid_width, grid_height, places);
+        //cout << endl;
+        //print_terrain(grid, grid_width, grid_height, places);
         //print_grid(grid, grid_width, grid_height, places);
         
         set<coord_t> new_places {};
         for (auto place: places)
             for (auto new_place: possible_places(place))
                 if (!grid.contains(transform_to_grid(new_place, grid_width, grid_height)) &&
-                    !is_in_ignore_area(new_place, ignores))
+                    !is_in_ignore_area(new_place, ignores, grid_width, grid_height))
                     new_places.emplace(new_place);
         
         int new_areas = update_ignore_area(new_places, grid, ignores, grid_width, grid_height);
-
+        
         if (step % 2 == 0)
             full_areas_even += new_areas;
         else
@@ -300,6 +445,30 @@ uint64_t find_number_of_garden_tiles_in_infinite_terrain(const set<coord_t> &gri
     }
     
     return places.size();
+}
+
+uint64_t solve_part_2(const set<coord_t> &grid, const int grid_width,
+                      const int grid_height, coord_t start, uint64_t steps = STEPS_PART_2);
+
+uint64_t solve_vertical_line(const set<coord_t> &grid, const int grid_width,
+                             const int grid_height, coord_t start, uint64_t steps)
+{
+
+}
+
+uint64_t solve_half(const set<coord_t> &grid, const int grid_width,
+                    const int grid_height, coord_t start, uint64_t steps)
+{
+    if (steps <= grid_height)
+        return find_number_of_garden_tiles_in_infinite_terrain(grid, grid_width, grid_height, start, steps) / 2;
+    
+    return 2 * solve_half(grid, grid_width, grid_height, {start.row, start.col - ((int64_t)steps / 2)}, steps / 2) + solve_part_2(grid, grid_width, grid_height, {start.row + (int64_t)steps / 2, start.col}, steps / 2);
+}
+
+uint64_t solve_part_2(const set<coord_t> &grid, const int grid_width,
+                      const int grid_height, coord_t start, uint64_t steps)
+{
+    return 2 * solve_half(grid, grid_width, grid_height, start, steps);
 }
 
 int main()
@@ -340,10 +509,10 @@ int main()
     if (PART_1)
         cout << "The total number of garden tiles that is reachable is: " << find_number_of_garden_tiles(grid, start)
              << endl;
-        // Part 2
+    // Part 2
     else
         cout << "The total number of garden tiles reachable in infinite terrain is: "
-             << find_number_of_garden_tiles_in_infinite_terrain(grid, width, height, start) << endl;
+             << solve_part_2(grid, width, height, start) << endl;
     
     auto end_time = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end_time - start_time);
